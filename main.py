@@ -1,63 +1,61 @@
 import os
 import requests
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# ✅ API KEYS
-BOT_TOKEN = "7917551868:AAGwsx2ptetUGD5jYttRtbZG9SpCWFEWEHs"
-AROLINKS_API_KEY = "9ebb1dc3ef10cfbe1d433e2ba98c3d023b843468"
-BYPASS_API = "https://gptoaro-1.onrender.com/bypass"  # 🔁 replace with your actual render URL
+# 🔐 Tokens & API Keys (use environment variables or hardcoded)
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "your_telegram_bot_token")
+BYPASS_API = "https://gptoaro-1.onrender.com/bypass/bypass"
+AROLINKS_API_KEY = os.environ.get("AROLINKS_API_KEY", "your_arolink_api_key")
 
-# ✅ Start message when bot runs
-async def start_message(app):
-    chat_id = "1413767412"  # 👈 Replace with your Telegram User ID
+# 🔗 AroLinks Shortener
+def create_arolink(original_url):
     try:
-        await app.bot.send_message(chat_id=chat_id, text="🤖 Bot is Live and Ready!")
-    except Exception as e:
-        print("❌ Could not send startup message:", e)
+        api_url = f"https://api.arolinks.com/api?api={AROLINKS_API_KEY}&url={original_url}"
+        res = requests.get(api_url)
+        data = res.json()
+        if data.get("status") == "success":
+            return data.get("shortenedUrl")
+        else:
+            return None
+    except:
+        return None
 
-# ✅ Handle user messages
+# 📩 Message Handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.strip()
 
     if not user_message.startswith("https://gplinks.co/"):
-        await update.message.reply_text("⚠️ Ye GPLinks short link hai. Sirf GPLinks link bhejo.")
+        await update.message.reply_text("⚠️ Sirf GPLinks URL bhejo.")
         return
 
-    await update.message.reply_text("⏳ GPLinks bypass ho raha hai...")
+    await update.message.reply_text("⏳ Bypassing GPLinks...")
 
     try:
-        # Step 1: Bypass GPLinks to get real destination
         bypass_res = requests.get(BYPASS_API, params={"url": user_message})
-        bypass_data = bypass_res.json()
+        data = bypass_res.json()
 
-        if bypass_data.get("status") != "success":
-            await update.message.reply_text("❌ GPLinks bypass failed.")
+        if data.get("status") != "success":
+            await update.message.reply_text("❌ Bypass failed.")
             return
 
-        real_url = bypass_data.get("destination")
+        real_url = data.get("destination")
+        short_url = create_arolink(real_url)
 
-        # Step 2: AroLinks shortening
-        aro_api = f"https://api.arolinks.com/api?api={AROLINKS_API_KEY}&url={real_url}"
-        aro_res = requests.get(aro_api).json()
-
-        if aro_res.get("status") == "success":
-            short_url = aro_res["shortenedUrl"]
+        if short_url:
             await update.message.reply_text(f"✅ AroLink Ready:\n{short_url}")
         else:
             await update.message.reply_text("❌ AroLinks shortening failed.")
 
     except Exception as e:
-        await update.message.reply_text("❌ Error occurred while processing.")
-        print("Error:", e)
+        await update.message.reply_text("❌ Error: " + str(e))
 
-# ✅ Start Bot
+# 🟢 Start Bot
+async def on_startup(app):
+    print("🤖 Bot started...")
+    # Optionally send a message to admin here if needed
+
 if __name__ == "__main__":
-    print("🤖 Starting bot...")
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).post_init(on_startup).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    # Optional: Send "Bot is live" message
-    app.post_init = start_message
-
     app.run_polling()
