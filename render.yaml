@@ -11,3 +11,6 @@ services:
         value: YOUR_GPLINKS_API_KEY
       - key: AROLINKS_API_KEY
         value: YOUR_AROLINKS_API_KEY
+    build:
+      environment:
+        PYTHON_VERSION: 3.10.12
