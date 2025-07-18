@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
 # ✅ API Keys
-TELEGRAM_BOT_TOKEN = '7917551868:AAHlVUsSLSJ1gi5ruNUouR8asSiZ8dn8hbM'
+TELEGRAM_BOT_TOKEN = '7917551868:AAFLj0WWUjVIaIqTTS5CKpLomsst71Q7hyQ'
 GPLINKS_API_KEY = '2469484d258897da1dc9edaf4face6f466301f39'
 AROLINKS_API_KEY = '9ebb1dc3ef10cfbe1d433e2ba98c3d023b843468'
 
