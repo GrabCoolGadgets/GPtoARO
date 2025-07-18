@@ -4,9 +4,9 @@ import requests
 from telegram.ext import Updater, MessageHandler, Filters
 
 # 🔑 CONFIG - Replace with your actual keys
-TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
-GPLINKS_API_KEY = 'YOUR_GPLINKS_API_KEY'
-AROLINKS_API_KEY = 'YOUR_AROLINKS_API_KEY'
+TELEGRAM_BOT_TOKEN = '7917551868:AAHlVUsSLSJ1gi5ruNUouR8asSiZ8dn8hbM'
+GPLINKS_API_KEY = '2469484d258897da1dc9edaf4face6f466301f39'
+AROLINKS_API_KEY = '9ebb1dc3ef10cfbe1d433e2ba98c3d023b843468'
 
 # 🔍 GPLinks URL Extractor
 def extract_gplinks(text):
