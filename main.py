@@ -1,18 +1,18 @@
-# main.py
 import re
 import requests
-from telegram.ext import Updater, MessageHandler, Filters
+from telegram import Update
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# 🔑 CONFIG - Replace with your actual keys
+# ✅ API Keys
 TELEGRAM_BOT_TOKEN = '7917551868:AAHlVUsSLSJ1gi5ruNUouR8asSiZ8dn8hbM'
 GPLINKS_API_KEY = '2469484d258897da1dc9edaf4face6f466301f39'
 AROLINKS_API_KEY = '9ebb1dc3ef10cfbe1d433e2ba98c3d023b843468'
 
-# 🔍 GPLinks URL Extractor
+# 🔍 Extract GPLinks
 def extract_gplinks(text):
     return re.findall(r'(https?://gplinks\.co/\S+)', text)
 
-# 🚀 GPLinks API
+# 🔓 Bypass GPLinks
 def bypass_gplink(url):
     try:
         res = requests.get(f"https://gplinks.co/api?api={GPLINKS_API_KEY}&url={url}")
@@ -21,7 +21,7 @@ def bypass_gplink(url):
     except:
         return None
 
-# 🎯 AroLinks API
+# 🔁 Convert to AroLinks
 def make_arolink(original_url):
     try:
         res = requests.get(f"https://arolinks.com/api?api={AROLINKS_API_KEY}&url={original_url}")
@@ -30,31 +30,32 @@ def make_arolink(original_url):
     except:
         return None
 
-# 🧠 Main Bot Logic
-def handle(update, context):
+# 🧠 Message Handler
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    urls = extract_gplinks(text)
-    if urls:
-        for url in urls:
-            bypassed = bypass_gplink(url)
+    links = extract_gplinks(text)
+    if links:
+        for gplink in links:
+            bypassed = bypass_gplink(gplink)
             if bypassed:
                 arolink = make_arolink(bypassed)
                 if arolink:
-                    update.message.reply_text(f'🔗 Converted Link: {arolink}')
+                    reply = f"""✅ *Link Converted Successfully!*
+
+🔗 GPLink: `{gplink}`
+🔓 Original: `{bypassed}`
+🔁 AroLink: `{arolink}`"""
+                    await update.message.reply_text(reply, parse_mode='Markdown')
                 else:
-                    update.message.reply_text("❌ AroLinks me issue aaya.")
+                    await update.message.reply_text("❌ AroLinks conversion failed.")
             else:
-                update.message.reply_text("❌ GPLinks bypass nahi hua.")
+                await update.message.reply_text("❌ GPLinks bypass failed.")
     else:
-        update.message.reply_text("🧐 Koi GPLinks URL nahi mila.")
+        await update.message.reply_text("⚠️ Koi GPLinks URL nahi mila.")
 
-# ▶️ Bot Start
-def main():
-    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(MessageHandler(Filters.text, handle))
-    updater.start_polling()
-    updater.idle()
-
+# ▶️ Start Bot
 if __name__ == '__main__':
-    main()
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("🤖 Bot started successfully...")
+    app.run_polling()
