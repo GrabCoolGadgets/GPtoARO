@@ -1,91 +1,47 @@
-import re
-import requests
-import undetected_chromedriver as uc
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+main.py (Telegram Bot that converts GPLinks to AroLinks)
 
-# Keys
-TELEGRAM_BOT_TOKEN = "7917551868:AAGwsx2ptetUGD5jYttRtbZG9SpCWFEWEHs"
-AROLINKS_API_KEY = "9ebb1dc3ef10cfbe1d433e2ba98c3d023b843468"
+import requests from telegram import Update from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-# Extract links from message
-def extract_links(text):
-    return re.findall(r"(https?://[^\s]+)", text)
+CONFIG (replace with your keys)
 
-# ✅ Real Bypass GPLinks using browser automation
-def bypass_gplink(link):
-    try:
-        options = uc.ChromeOptions()
-        options.headless = True
-        options.add_argument("--no-sandbox")
-        driver = uc.Chrome(options=options)
+BOT_TOKEN = "7917551868:AAGwsx2ptetUGD5jYttRtbZG9SpCWFEWEWEHs" AROLINKS_API_KEY = "9ebb1dc3ef10cfbe1d433e2ba98c3d023b843468" BYPASS_API = "https://your-render-url.onrender.com/bypass"  # 🔁 Your deployed API URL
 
-        driver.get(link)
+FUNCTION: Convert original URL to AroLink
 
-        # Wait for 'Get Link' button to appear
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.ID, "go_link"))
-        )
-        final_button = driver.find_element(By.ID, "go_link")
-        final_url = final_button.get_attribute("href")
+def create_arolink(original_url): api_url = f"https://api.arolinks.com/api?api={AROLINKS_API_KEY}&url={original_url}" try: res = requests.get(api_url) data = res.json() return data.get("shortenedUrl") if data.get("status") == "success" else None except: return None
 
-        driver.quit()
-        return final_url
-    except Exception as e:
-        print("Bypass Error:", e)
-        return None
+FUNCTION: Handle incoming messages
 
-# AroLinks Convert
-def convert_to_arolink(url):
-    try:
-        res = requests.get(
-            f"https://arolinks.com/api?api={AROLINKS_API_KEY}&url={url}"
-        )
-        data = res.json()
-        if data["status"] == "success":
-            return data["shortenedUrl"]
-        else:
-            return None
-    except:
-        return None
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE): user_message = update.message.text.strip()
 
-# Telegram handler
-async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    links = extract_links(text)
+if not user_message.startswith("https://gplinks.co/"):
+    await update.message.reply_text("⚠️ Ye already GPLinks short link hai. Original URL bhejo.")
+    return
 
-    if not links:
-        await update.message.reply_text("❌ Koi link nahi mila.")
+await update.message.reply_text("⏳ Bypassing GPLinks...")
+
+try:
+    # Step 1: Bypass GPLinks
+    bypass_res = requests.get(BYPASS_API, params={"url": user_message})
+    bypass_data = bypass_res.json()
+
+    if bypass_data.get("status") != "success":
+        await update.message.reply_text("❌ GPLinks bypass failed.")
         return
 
-    for link in links:
-        if "gplinks.co" not in link:
-            await update.message.reply_text("❗ Sirf GPLinks link bhejo.")
-            continue
+    real_url = bypass_data.get("destination")
 
-        await update.message.reply_text("🔄 Bypassing GPLinks...")
+    # Step 2: Convert to AroLink
+    short_url = create_arolink(real_url)
+    if short_url:
+        await update.message.reply_text(f"✅ AroLink Ready:\n{short_url}")
+    else:
+        await update.message.reply_text("❌ AroLinks shortening failed.")
 
-        destination = bypass_gplink(link)
+except Exception as e:
+    await update.message.reply_text("❌ Unexpected error occurred.")
 
-        if not destination:
-            await update.message.reply_text("❌ Bypass failed.")
-            return
+START BOT
 
-        await update.message.reply_text(f"✅ Found: {destination}")
+if name == "main": app = ApplicationBuilder().token(BOT_TOKEN).build() app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)) print("🤖 Bot started...") app.run_polling()
 
-        arolink = convert_to_arolink(destination)
-
-        if arolink:
-            await update.message.reply_text(f"✅ AroLink: {arolink}")
-        else:
-            await update.message.reply_text("❌ AroLink convert failed.")
-
-# Start bot
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
-    print("🤖 Bot Started")
-    app.run_polling()
