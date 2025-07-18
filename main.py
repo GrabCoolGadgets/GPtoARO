@@ -3,76 +3,71 @@ import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# ✅ API Keys
+# 🔑 API Keys
 TELEGRAM_BOT_TOKEN = '7917551868:AAGwsx2ptetUGD5jYttRtbZG9SpCWFEWEHs'
-GPLINKS_API_KEY = '2469484d258897da1dc9edaf4face6f466301f39'
 AROLINKS_API_KEY = '9ebb1dc3ef10cfbe1d433e2ba98c3d023b843468'
 
-# 🔍 Extract all URLs
+# ✅ Step 1: Extract links from message
 def extract_links(text):
     return re.findall(r'(https?://[^\s]+)', text)
 
-# 🔗 Create GPLinks Short URL
-def create_gplink(original_url):
+# ✅ Step 2: Bypass GPLinks
+def bypass_gplink(url):
     try:
-        res = requests.get(f"https://gplinks.co/api?api={GPLINKS_API_KEY}&url={original_url}")
-        data = res.json()
-        if data.get("status") == "success" and "shortenedUrl" in data:
-            return data["shortenedUrl"]
-        else:
-            print("GPLinks Error:", data)
-            return None
+        session = requests.Session()
+        headers = {"User-Agent": "Mozilla/5.0"}
+        response = session.get(url, headers=headers, allow_redirects=True, timeout=10)
+        return response.url
     except Exception as e:
-        print("❌ GPLinks Exception:", e)
+        print("❌ Bypass Error:", e)
         return None
 
-# 🔁 Convert to AroLink
-def create_arolink(original_url):
+# ✅ Step 3: Send to AroLinks
+def convert_to_arolink(url):
     try:
-        res = requests.get(f"https://arolinks.com/api?api={AROLINKS_API_KEY}&url={original_url}")
+        res = requests.get(f"https://arolinks.com/api?api={AROLINKS_API_KEY}&url={url}")
         data = res.json()
-        if data.get("status") == "success" and "shortenedUrl" in data:
+        if data.get("status") == "success":
             return data["shortenedUrl"]
         else:
-            print("AroLinks Error:", data)
+            print("❌ AroLinks API error:", data)
             return None
     except Exception as e:
-        print("❌ AroLinks Exception:", e)
+        print("❌ AroLinks Error:", e)
         return None
 
-# 📩 Handle Messages
+# ✅ Step 4: Handle incoming messages
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    links = extract_links(text)
+    message = update.message.text
+    links = extract_links(message)
 
     if not links:
-        await update.message.reply_text("⚠️ Koi bhi link nahi mila.")
+        await update.message.reply_text("❗ Koi link nahi mila.")
         return
 
-    for url in links:
-        if "gplinks.co/" in url:
-            await update.message.reply_text("⚠️ Ye already GPLinks short link hai. Original URL bhejo.")
+    for link in links:
+        if "gplinks.co/" not in link:
+            await update.message.reply_text("❗ Sirf GPLinks link bhejo.")
             continue
 
-        gplink = create_gplink(url)
-        if not gplink:
-            await update.message.reply_text("❌ GPLinks se shorten nahi ho paya.")
+        await update.message.reply_text("🔄 Bypassing GPLinks...")
+
+        original_url = bypass_gplink(link)
+
+        if not original_url:
+            await update.message.reply_text("❌ GPLinks bypass failed.")
             continue
 
-        arolink = create_arolink(gplink)
-        if not arolink:
-            await update.message.reply_text("❌ AroLinks conversion failed.")
-            continue
+        await update.message.reply_text(f"✅ Destination: `{original_url}`", parse_mode='Markdown')
 
-        # ✅ Final Reply
-        reply = f"""✅ *Link Converted Successfully!*
+        arolink = convert_to_arolink(original_url)
 
-🔗 Original: `{url}`
-🔁 GPLink: `{gplink}`
-🔁 AroLink: `{arolink}`"""
-        await update.message.reply_text(reply, parse_mode='Markdown')
+        if arolink:
+            await update.message.reply_text(f"✅ AroLink: `{arolink}`", parse_mode='Markdown')
+        else:
+            await update.message.reply_text("❌ AroLink conversion failed.")
 
-# ▶️ Start Bot
+# ▶️ Start the bot
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
